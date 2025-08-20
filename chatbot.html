@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat GLI Inmobiliaria</title>
+  <style>
+    body { font-family: sans-serif; margin:0; padding:0; background:#f9f9f9; }
+    #messages { height:440px; overflow-y:auto; padding:10px; border-bottom:1px solid #ccc; background:#fff; }
+    .msg { margin:10px 0; padding:8px 12px; border-radius:10px; max-width:80%; white-space:pre-line; }
+    .user { text-align:right; background:#e1ecf4; margin-left:auto; color:#0b5394; }
+    .bot { text-align:left; background:#f4f4f4; margin-right:auto; color:#3c3c3c; }
+    #form { display:flex; padding:10px; background:#fff; }
+    input { flex:1; padding:8px; border:1px solid #ccc; border-radius:5px; }
+    button { padding:8px 15px; margin-left:5px; background:#6f4e37; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+    .chat-button { display:inline-block; margin:8px 5px 0 0; padding:6px 12px; background:#6f4e37; color:white; border:none; border-radius:5px; cursor:pointer; font-size:14px; }
+    .chat-button:hover { background:#543925; }
+  </style>
+</head>
+<body>
+<div id="messages"></div>
+<form id="form">
+  <input type="text" id="input" placeholder="Escribe tu mensaje..." autocomplete="off">
+  <button type="submit">Enviar</button>
+</form>
+
+<script>
+const form = document.getElementById("form");
+const input = document.getElementById("input");
+const messages = document.getElementById("messages");
+
+let leadData = { tipo:"", zona:"", presupuesto:"", habitaciones:"", banos:"", jardin:"", extras:"", contacto:"" };
+
+const preguntas = [
+  "Cuéntame, ¿qué tipo de propiedad buscas? (casa, departamento, terreno, etc.)",
+  "¡Excelente! 🙌 ¿En qué zona te gustaría que estuviera?",
+  "Perfecto 👍 ¿Cuál es tu presupuesto aproximado?",
+  "Muy bien 👌 ¿Cuántas habitaciones te gustaría?",
+  "¿Y cuántos baños?",
+  "Genial ✨ ¿Quieres que tenga jardín u otra característica especial?",
+  "Por último, ¿me compartes tu número de teléfono o correo de contacto?"
+];
+
+let paso = 0;
+const finalizarPalabras = ["ya sería todo","nada más","eso es todo","sería todo"];
+
+function usuarioFinalizo(msg){
+  return finalizarPalabras.some(p=>msg.toLowerCase().includes(p));
+}
+
+function addMessage(text, sender){
+  messages.innerHTML += `<div class="msg ${sender}">${text}</div>`;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function mostrarResumen(){
+  const resumen = `
+✅ ¡Perfecto! Esto fue lo que nos compartiste:
+- Tipo: ${leadData.tipo || "No especificado"}
+- Zona: ${leadData.zona || "No especificado"}
+- Presupuesto: ${leadData.presupuesto || "No especificado"}
+- Habitaciones: ${leadData.habitaciones || "No especificado"}
+- Baños: ${leadData.banos || "No especificado"}
+- Jardín: ${leadData.jardin || "No especificado"}
+- Otras características: ${leadData.extras || "No especificado"}
+- Contacto: ${leadData.contacto || "No especificado"}
+
+🙌 Un asesor de GLI Inmobiliaria se pondrá en contacto contigo muy pronto.
+  `;
+  addMessage(resumen,"bot");
+
+  // Enviar a backend
+  fetch("http://localhost:3000/send-lead", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(leadData)
+  });
+}
+
+function guardarRespuesta(msg){
+  switch(paso){
+    case 0: leadData.tipo = msg; break;
+    case 1: leadData.zona = msg; break;
+    case 2: leadData.presupuesto = msg; break;
+    case 3: leadData.habitaciones = msg; break;
+    case 4: leadData.banos = msg; break;
+    case 5: leadData.jardin = msg; break;
+    case 6: leadData.contacto = msg; break;
+    default: leadData.extras = msg;
+  }
+}
+
+// 🚀 Gemini: pedir respuesta natural
+async function enviarAGemini(mensajeUsuario){
+  try {
+    const resp = await fetch("http://localhost:3000/gemini", { // tu backend con Gemini
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ mensaje: mensajeUsuario })
+    });
+    const data = await resp.json();
+    return data.respuesta || "Entiendo 👍";
+  } catch(e){
+    console.error("Error Gemini:", e);
+    return "¡Gracias por tu respuesta!";
+  }
+}
+
+async function siguientePregunta(msgUsuario){
+  guardarRespuesta(msgUsuario);
+
+  if(paso < preguntas.length - 1){
+    paso++;
+
+    // Primero Gemini contesta natural
+    const respuestaGemini = await enviarAGemini(msgUsuario);
+
+    // Luego mostramos la siguiente pregunta
+    addMessage(`${respuestaGemini}\n\n${preguntas[paso]}`,"bot");
+
+  } else {
+    mostrarResumen();
+  }
+}
+
+form.onsubmit = async (e)=>{
+  e.preventDefault();
+  const msg = input.value.trim();
+  if(!msg) return;
+
+  addMessage(msg,"user");
+  input.value = "";
+
+  if(usuarioFinalizo(msg)){
+    mostrarResumen();
+    return;
+  }
+
+  await siguientePregunta(msg);
+};
+
+// Mensaje inicial
+document.addEventListener("DOMContentLoaded", ()=>{
+  addMessage(`
+👋 ¡Hola! Soy <strong>Geli</strong>, tu asistente virtual en GLI Inmobiliaria.  
+Estoy aquí para ayudarte a encontrar la propiedad perfecta.  
+
+${preguntas[0]}
+
+<button class="chat-button" onclick="window.open('/agendarcita.html','_blank')">📅 Agendar Cita</button>
+<button class="chat-button" onclick="window.open('https://glinmobiliaria.com','_blank')">🏠 Ver Propiedades</button>
+  `,"bot");
+});
+</script>
+</body>
+</html>
