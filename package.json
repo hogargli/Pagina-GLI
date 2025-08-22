@@ -1,12 +1,10 @@
 {
-  "name": "startbootstrap-creative-gh-pages",
+  "name": "bot-gli",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "servidor.js",
   "scripts": {
-  "start": "node server.js",
-  "test": "echo \"Error: no test specified\" && exit 1"
-}
-,
+    "start": "node servidor.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
