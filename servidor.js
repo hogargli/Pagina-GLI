@@ -1,5 +1,19 @@
 require('dotenv').config(); // Cargar variables de entorno
 
+const nodemailer = require("nodemailer");
+
+// === CONFIG DE CORREO ===
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com", // si usas Gmail
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER, // en Render lo guardas como variable de entorno
+    pass: process.env.EMAIL_PASS  // contraseña de aplicación
+  }
+});
+
+
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -73,6 +87,15 @@ app.post("/ask-gemini", async (req, res) => {
         body: mensajeWhatsApp
       });
 
+      // === ENVIAR TAMBIÉN POR EMAIL ===
+      await transporter.sendMail({
+        from: `"GLI Inmobiliaria" <${process.env.EMAIL_USER}>`,
+        to: "ventas@gli.com.mx",
+        subject: "📩 Nuevo lead GLI Inmobiliaria",
+        text: mensajeWhatsApp,
+        html: `<pre>${mensajeWhatsApp}</pre>`
+      });
+
       return res.json({ success: true, msg: "Lead enviado a WhatsApp" });
     }
 
@@ -137,6 +160,15 @@ Datos conocidos: ${JSON.stringify(userData, null, 2)}
         from: TWILIO_WHATSAPP_FROM,
         to: WHATSAPP_TO,
         body: mensajeWhatsApp
+      });
+
+      // === ENVIAR TAMBIÉN POR EMAIL ===
+      await transporter.sendMail({
+        from: `"GLI Inmobiliaria" <${process.env.EMAIL_USER}>`,
+        to: "ventas@gli.com.mx",
+        subject: "📩 Nuevo lead GLI Inmobiliaria",
+        text: mensajeWhatsApp,
+        html: `<pre>${mensajeWhatsApp}</pre>`
       });
 
       // Reiniciar para no duplicar leads
