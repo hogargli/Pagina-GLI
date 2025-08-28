@@ -13,7 +13,7 @@ app.use(express.json()); // Parsear JSON
 app.use(express.static("public")); // Servir archivos estáticos si los tienes
 
 // === CONFIGURACIÓN DE API Y TWILIO ===
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_URL = process.env.GEMINI_URL;
 
 const TWILIO_SID = process.env.TWILIO_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
